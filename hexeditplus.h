@@ -1,11 +1,6 @@
 #ifndef HEXEDITPLUS_H
 #define HEXEDITPLUS_H
 
-typedef struct command{
-    char* name;
-    void (*fun)();
-} Command;
-
 typedef struct {
   char debug_mode;
   char file_name[128];
@@ -19,7 +14,14 @@ typedef struct {
   */
 } state;
 
-void toggle_debug_mode();
+typedef struct command{
+    char* name;
+    void (*fun)(state*);
+} Command;
+
+
+
+void toggle_debug_mode(state*);
 void print_menu();
 char get_input();
 

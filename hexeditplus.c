@@ -5,7 +5,7 @@
 
 char debug_mode = 0;
 
-void toggle_debug_mode(){
+void toggle_debug_mode(state* _){
     debug_mode = 1 - debug_mode;
     if(debug_mode)
         printf("Debug flag now on\n");
@@ -64,7 +64,7 @@ int main(){
             printf("Not yet implemented!\n");
             continue;
         }
-        (*chosenCmd.fun)();
+        (*chosenCmd.fun)(NULL);
     }
 
     return 0;
