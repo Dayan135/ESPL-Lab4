@@ -22,8 +22,20 @@ typedef struct command{
 
 
 void toggle_debug_mode(state*);
+void set_file_name(state*);
+void set_unit_size(state*);
+void load_into_memory(state*);
+void toggle_display_mode(state*);
+void file_display(state*);
+void memory_display(state*);
+void save_into_file(state*);
+void memory_modify(state*);
+void quit(state*);
+
+
 void print_menu();
 char get_input();
+
 
 
 #endif
