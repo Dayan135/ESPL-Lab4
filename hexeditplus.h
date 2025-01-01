@@ -3,6 +3,7 @@
 
 typedef struct {
   char debug_mode;
+  char display_mode;
   char file_name[128];
   int unit_size;
   unsigned char mem_buf[10000];

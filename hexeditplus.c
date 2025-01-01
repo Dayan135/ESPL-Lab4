@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "hexeditplus.h"
 
 #define MAX_FILE_NAME_SIZE 100
+#define MAX_FILE_SIZE 10000
 
-static char* hex_formats[] = {"%#hhx\n", "%#hx\n", "No such unit", "%#x\n"};
-static char* dec_formats[] = {"%#hhd\n", "%#hd\n", "No such unit", "%#d\n"};
-state* state0;
+static char* hex_formats[] = {"%#hhx", "%#hx", "No such unit", "%#x"};
+static char* dec_formats[] = {"%#hhd", "%#hd", "No such unit", "%#d"};
 
 void toggle_debug_mode(state* s){
     s->debug_mode = 1 - s->debug_mode;
@@ -21,6 +22,7 @@ void set_file_name(state* s){
     char buffer[MAX_FILE_NAME_SIZE];
     printf("Insert file name: ");
     if (fgets(buffer, MAX_FILE_NAME_SIZE, stdin)) {
+        buffer[strlen(buffer)-1] = '\0';
         if(s->debug_mode)
             fprintf(stderr, "Debug: file name set to %s\n", buffer);
         strcpy(s->file_name, buffer);
@@ -36,22 +38,159 @@ void set_unit_size(state* s){
                 fprintf(stderr, "Debug: set size to %d\n", s->unit_size);
         }
         else
-            printf("Error! invalid input\n\n");
+            perror("Error! invalid input\n\n");
     }
 }
 
 void load_into_memory(state* s){
-    printf("Not Yet Implemented");
+    char buffer[51];
+    int offset, length;
+    if(s->file_name == NULL || *s->file_name=='\0'){
+        perror("Error! no file name. can't load! \\n");
+        return;
+    }
+    FILE* file = fopen(s->file_name,"r");
+    if(file == NULL){
+        printf("Error! couldn't load file named \"%s\". can't load! \\n",s->file_name);
+        return;
+    }
+
+    printf("Please enter <location> <length>\n");
+    if (fgets(buffer, 50, stdin) != NULL)
+    {
+        sscanf(buffer,"%x %d", &offset,&length);
+    }
+    else{
+        perror("Error! couldn't get an input");
+        goto end;
+    }
+
+    // if(length == -1 || offset == -1){
+    //     perror("Error! error parsing numbers");
+    //     goto end;
+    // }
+    
+    if (fseek(file, offset, SEEK_SET) != 0) {
+        perror("Error seeking to offset");
+        goto end;
+    }
+
+    if(s->debug_mode)
+        fprintf(stderr, "Debug: reading from file \"%s\", starting from location 0x%x (%d), for %d unites (unit = %d bytes)\n", 
+            s->file_name, offset,offset, length*s->unit_size, s->unit_size);
+    
+    if (fread(s->mem_buf,1,length * s->unit_size,file) <= 0) {
+        perror("Error reading from file");
+        goto end;
+    }
+    end:
+        fclose(file);
+
 }
 void toggle_display_mode(state* s){
-    printf("Not Yet Implemented");
+    s->display_mode = 1 - s->display_mode;
+    if(s->display_mode)
+        printf("Display flag now on, hexadecimal representation\n");
+    else
+        printf("Display flag now off, decimal representation\n");
 }
+
 void file_display(state* s){
-    printf("Not Yet Implemented");
+    char buffer[51];
+    int offset, length;
+    int u = s->unit_size;
+    char* toPrint;
+
+    printf("Please enter file offset and length as: <address> <length>\n");
+    if (fgets(buffer, 50, stdin) != NULL)
+    {
+        sscanf(buffer,"%x %d", &offset,&length);
+    }
+    else{
+        perror("Error! couldn't get an input");
+        return;
+    }
+
+    FILE* file = fopen(s->file_name,"r");
+    if(file == NULL){
+        printf("Error! couldn't load file named \"%s\". can't load! \\n",s->file_name);
+        return;
+    }
+
+    if (fseek(file, offset, SEEK_SET) != 0) {
+        perror("Error seeking to offset");
+        goto end;
+    }
+
+    if(s->debug_mode)
+        fprintf(stderr, "Debug: displpaying from file \"%s\", starting from location 0x%x (%d), for %d unites (unit = %d bytes)\n", 
+            s->file_name, offset,offset, length*u, u);
+    
+    toPrint = (char*)malloc(sizeof(char) * length * u);
+    if (fread(toPrint,1,length * s->unit_size,file) <= 0) {
+        perror("Error reading from file");
+        goto end;
+    }
+    printf("%s\n========\n",s->display_mode?"Hexadecimal":"Decimal");
+    for(int i = 0; i < length * u && toPrint[i] != '\0'; i+= u){
+        unsigned int numToPrint = 0;
+        for(int j = 0; j < u; j++){
+            numToPrint<<=8;
+            numToPrint += toPrint[i+j];
+        }
+        if(s->display_mode){//hexa print
+            printf(hex_formats[u-1], numToPrint);
+        }
+        else{//decimal print
+            printf(dec_formats[u-1], numToPrint);
+        }
+        printf("\n");
+    }
+
+    free(toPrint);
+    end:
+        fclose(file);
 }
+
 void memory_display(state* s){
-    printf("Not Yet Implemented");
+    char buffer[51];
+    int offset, length;
+    int u = s->unit_size;
+
+    printf("Please enter memory offset and length as: <address> <length>\n");
+    if (fgets(buffer, 50, stdin) != NULL)
+    {
+        sscanf(buffer,"%x %d", &offset,&length);
+    }
+    else{
+        perror("Error! couldn't get an input");
+        return;
+    }
+
+    if(offset >= strlen(s->mem_buf)){
+        perror("Error! offset is bigger then memory saved");
+        return;
+    }
+
+    printf("%s\n========\n",s->display_mode?"Hexadecimal":"Decimal");
+
+    unsigned char* mem2display = s->mem_buf + offset;
+    for(int i = 0; i < length * u && mem2display[i] != '\0'; i+= u){
+        unsigned int numToPrint = 0;
+        for(int j = 0; j < u; j++){
+            numToPrint<<=8;
+            numToPrint += mem2display[i+j];
+        }
+        if(s->display_mode){//hexa print
+            printf(hex_formats[u-1], numToPrint);
+        }
+        else{//decimal print
+            printf(dec_formats[u-1], numToPrint);
+        }
+        printf("\n");
+    }
 }
+
 void save_into_file(state* s){
     printf("Not Yet Implemented");
 }
@@ -102,7 +241,11 @@ int main(){
     char buffer[20];
     Command chosenCmd;
 
-    state0 = (state*)malloc(sizeof(state));
+    
+    state* state0 = (state*)malloc(sizeof(state));
+    state0->debug_mode = 0;
+    state0->display_mode = 0;
+    state0->unit_size = 1;
 
     c[1] = '\0';
     while(1){
