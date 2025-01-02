@@ -192,10 +192,80 @@ void memory_display(state* s){
 }
 
 void save_into_file(state* s){
-    printf("Not Yet Implemented");
+    char buffer[51];
+    int source_addr, target_addr, length;
+    int u = s->unit_size;
+    int mem_size = strlen(s->mem_buf);
+    char* toPrint;
+
+    printf("Please enter <source-address> <target-location> <length>\n");
+    if (fgets(buffer, 50, stdin) != NULL)
+    {
+        sscanf(buffer,"%x %x %d", &source_addr, &target_addr, &length);
+    }
+    else{
+        perror("Error! couldn't get an input");
+        return;
+    }
+
+    FILE* file = fopen(s->file_name,"r+b");
+    if(file == NULL){
+        printf("Error! couldn't load file named \"%s\". can't load! \\n",s->file_name);
+        return;
+    }
+
+    if (fseek(file, target_addr, SEEK_SET) != 0) {
+        perror("Error seeking to target address");
+        goto end;
+    }
+
+    if(mem_size < source_addr){ //if there are less bytes then requested to write
+        perror("Error got target address that is over the memory saved");
+        goto end;
+    }
+
+
+    if(s->debug_mode)
+        fprintf(stderr, "Debug: writing to file \"%s\", to address 0x%x (%d), for %d unites (unit = %d bytes)\n", 
+            s->file_name, target_addr, target_addr, length*u, u);
+    
+    fwrite(s->mem_buf + source_addr, length*u, 1, file);
+
+    end:
+        fclose(file);
+    //
 }
 void memory_modify(state* s){
-    printf("Not Yet Implemented");
+    char buffer[51];
+    int location, val;
+    int u = s->unit_size;
+    int mem_size = strlen(s->mem_buf);
+    char bytes[4];
+
+    printf("Please enter <location> <val>\n");
+    if (fgets(buffer, 50, stdin) != NULL)
+    {
+        sscanf(buffer,"%x %x", &location, &val);
+    }
+    else{
+        perror("Error! couldn't get an input");
+        return;
+    }
+
+    if(location + u >= mem_size){
+        perror("Error location (+ unit size) inserted is bigger then mem_size");
+        return;
+    }
+    
+    if(val >= 1<<(8*u)){
+        perror("Error value inserted is bigger then unit size");
+        return;
+    }
+
+    for(int i = 0; i < u; i++){
+        s->mem_buf[location + i] = val % (1<<8);
+        val/= 1<<8;
+    }
 }
 void quit(state* s){
     if(s->debug_mode)
@@ -203,9 +273,9 @@ void quit(state* s){
     exit(0);
 }
 
-Command cmnds[] = {{"0-Toggle Debug Mode",toggle_debug_mode},{"1-Set File Name",set_file_name},{"2-Set Unit Size",set_unit_size},{"3-Load Into Memory",load_into_memory},
-        {"4-Toggle Display Mode",toggle_display_mode},{"5-File Display",file_display},{"6-Memory Display",memory_display},
-        {"7-Save Into File",save_into_file},{"8-Memory Modify",memory_modify},{"9-Quit",quit},{NULL,NULL}};
+Command cmnds[] = {{"0-Toggle Debug Mode",toggle_debug_mode},{"1-Set File Name",set_file_name},{"2-Set Unit Size",set_unit_size},
+    {"3-Load Into Memory",load_into_memory}, {"4-Toggle Display Mode",toggle_display_mode},{"5-File Display",file_display},
+    {"6-Memory Display",memory_display},{"7-Save Into File",save_into_file},{"8-Memory Modify",memory_modify},{"9-Quit",quit},{NULL,NULL}};
 
 
 void print_menu(){
